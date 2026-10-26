@@ -1,0 +1,13 @@
+index=windows (source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" OR source="WinEventLog:Microsoft-Windows-Sysmon/Operational") EventCode=1
+| eval process_image=lower(coalesce(Image,""))
+| eval parent_image=lower(coalesce(ParentImage,""))
+| eval is_powershell=if(match(process_image,"(^|[/\\\\])(powershell|pwsh)[.]exe$"),1,0)
+| eval is_cmd_child=if(match(process_image,"(^|[/\\\\])cmd[.]exe$") AND match(parent_image,"(^|[/\\\\])(powershell|pwsh)[.]exe$"),1,0)
+| where is_powershell=1 OR is_cmd_child=1
+| eval correlation_guid=case(is_powershell=1,lower(ProcessGuid),is_cmd_child=1,lower(ParentProcessGuid))
+| eventstats max(is_powershell) AS parent_event_observed BY host correlation_guid
+| where is_cmd_child=1
+| eval relationship_evidence=if(parent_event_observed=1,"guid_verified","sysmon_parent_fields_only")
+| eval detection_id="DET-04", detection_name="PowerShell Spawning Command Shell"
+| table _time host User Image CommandLine ParentImage ParentCommandLine ProcessGuid ParentProcessGuid relationship_evidence detection_id detection_name
+| sort 0 - _time

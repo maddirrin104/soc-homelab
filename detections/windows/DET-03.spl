@@ -1,0 +1,8 @@
+index=windows (source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" OR source="WinEventLog:Microsoft-Windows-Sysmon/Operational") EventCode=1
+| eval process_image=lower(coalesce(Image,""))
+| eval command_line=lower(coalesce(CommandLine,""))
+| where match(process_image,"(^|[/\\\\])(powershell|pwsh)[.]exe$")
+    AND match(command_line,"(^|[[:space:]])[-/](encodedcommand|enc)([[:space:]]|:|$)")
+| eval detection_id="DET-03", detection_name="PowerShell Encoded Command Execution"
+| table _time host User Image CommandLine ParentImage ProcessGuid ParentProcessGuid detection_id detection_name
+| sort 0 - _time

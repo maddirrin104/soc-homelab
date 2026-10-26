@@ -1,0 +1,12 @@
+index=windows (source="XmlWinEventLog:Security" OR source="WinEventLog:Security") EventCode=4720
+| eval event_host=coalesce(Computer,host)
+| eval host_short=lower(mvindex(split(event_host,"."),0))
+| eval created_account=TargetUserName
+| eval created_account_domain=TargetDomainName
+| eval creator=coalesce(SubjectUserName,"unknown")
+| eval creator_domain=coalesce(SubjectDomainName,"unknown")
+| where isnotnull(created_account) AND created_account!="" AND created_account!="-"
+    AND isnotnull(created_account_domain) AND lower(created_account_domain)=host_short
+| eval detection_id="DET-06", detection_name="New Local User Account Created", account_scope="local"
+| table _time host event_host created_account_domain created_account TargetSid creator_domain creator account_scope detection_id detection_name
+| sort 0 - _time

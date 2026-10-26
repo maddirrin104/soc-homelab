@@ -1,0 +1,14 @@
+index=windows (source="XmlWinEventLog:Security" OR source="WinEventLog:Security") EventCode=4625
+| eval account=coalesce(TargetUserName, mvindex(Account_Name,1))
+| eval src_ip=coalesce(IpAddress, Source_Network_Address, src)
+| eval dest_host=host
+| eval logon_type=tostring(coalesce(LogonType, Logon_Type))
+| where isnotnull(account) AND account!="" AND account!="-"
+    AND isnotnull(src_ip) AND src_ip!="" AND src_ip!="-" AND src_ip!="unknown"
+| bin _time span=5m
+| stats
+    count AS failed_logons
+    values(logon_type) AS logon_types
+    BY _time account src_ip dest_host
+| where failed_logons>=3
+| sort - failed_logons

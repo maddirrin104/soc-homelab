@@ -1,0 +1,14 @@
+index=windows (source="XmlWinEventLog:Security" OR source="WinEventLog:Security") EventCode=4698
+| eval task_name=coalesce(TaskName,Task_Name,"unknown")
+| eval task_content=coalesce(TaskContent,"")
+| eval actor=coalesce(SubjectUserName,"unknown")
+| eval actor_domain=coalesce(SubjectDomainName,"unknown")
+| eval action_lc=lower(task_content)
+| eval classification=case(
+    match(action_lc,"(powershell|pwsh)[.]exe") AND match(action_lc,"[-/](encodedcommand|enc)([[:space:]]|<|:|$)"),"encoded_powershell_action",
+    match(action_lc,"(mshta|wscript|cscript|regsvr32|rundll32)[.]exe"),"script_interpreter_or_lolbin_action",
+    true(),"new_task_requires_review")
+| eval triage_priority=if(classification="new_task_requires_review","review","elevated_review")
+| eval detection_id="DET-05", detection_name="Suspicious Scheduled Task Creation"
+| table _time host actor_domain actor task_name classification triage_priority task_content detection_id detection_name
+| sort 0 - _time
