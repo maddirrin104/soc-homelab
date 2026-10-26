@@ -18,6 +18,8 @@ This project demonstrates a practical Security Operations Center (SOC) workflow:
 
 ## Lab Architecture
 
+![model](model.png)
+
 ```mermaid
 flowchart TB
     HOME["Home network / router<br/>192.168.1.0/24"]
@@ -44,7 +46,6 @@ flowchart TB
     FW -->|"Firewall + Suricata logs"| SPLUNK
 ```
 
-![model](model.png)
 
 The Kali and Splunk virtual machines use **bridged networking** on the home LAN. The Windows workstation and Ubuntu DMZ are separate lab networks behind OPNsense. Cross-subnet test traffic requires working routing and appropriate firewall rules; the source address recorded in a log may differ when NAT is involved.
 
