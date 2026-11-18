@@ -1,0 +1,12 @@
+index=suricata_ids
+| spath
+| where event_type="alert"
+| eval signature_id=tonumber('alert.signature_id')
+| eval http_path='http.url'
+| where signature_id=1000001 AND (lower(coalesce(app_proto,""))="http" OR isnotnull(http_path))
+| eval signature_name='alert.signature', signature_category='alert.category'
+| eval signature_severity='alert.severity', alert_action='alert.action'
+| eval detection_id="DET-11", detection_name="Suricata HTTP Probe IDS Alert"
+| eval detection_origin="expected_lab_test_signature_pending_validation"
+| table _time src_ip src_port dest_ip dest_port app_proto signature_id signature_name signature_category signature_severity alert_action http_path detection_origin detection_id detection_name
+| sort 0 - _time

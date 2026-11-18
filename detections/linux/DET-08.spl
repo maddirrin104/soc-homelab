@@ -1,0 +1,10 @@
+index=* "Failed password for"
+| rex field=_raw "(?i)Failed password for (?:invalid user )?(?<account>[^[:space:]]+) from (?<src_ip>[0-9a-f:.]+) port (?<src_port>[0-9]+)"
+| where isnotnull(account) AND isnotnull(src_ip)
+| eval account=lower(account), event_time=_time
+| bin _time span=5m
+| stats count AS failed_logons min(event_time) AS first_seen max(event_time) AS last_seen values(source) AS log_sources BY _time host src_ip account
+| where failed_logons>=3
+| eval detection_id="DET-08", detection_name="Multiple Failed SSH Logins"
+| table _time host src_ip account failed_logons first_seen last_seen log_sources detection_id detection_name
+| sort 0 - failed_logons

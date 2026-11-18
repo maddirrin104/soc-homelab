@@ -1,0 +1,17 @@
+index=suricata_ids
+| spath
+| where event_type="http"
+| eval request_uri='http.url', http_method='http.http_method', http_status='http.status'
+| where isnotnull(src_ip) AND isnotnull(dest_ip) AND isnotnull(request_uri)
+| eval normalized_path=lower(mvindex(split(request_uri,"?"),0))
+| where match(normalized_path,"^/([.]env$|[.]git(/|$)|wp-login[.]php$|admin(/|$)|phpmyadmin(/|$))")
+| eval event_time=_time
+| bin _time span=5m
+| stats count AS probe_requests dc(normalized_path) AS unique_probe_paths
+    values(normalized_path) AS sensitive_paths values(http_status) AS observed_statuses
+    min(event_time) AS first_seen max(event_time) AS last_seen
+    BY _time src_ip dest_ip
+| where probe_requests>=3 AND unique_probe_paths>=2
+| eval detection_id="DET-12", detection_name="Suspicious HTTP Path Probing"
+| table _time src_ip dest_ip probe_requests unique_probe_paths sensitive_paths observed_statuses first_seen last_seen detection_id detection_name
+| sort 0 - probe_requests

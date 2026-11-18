@@ -1,0 +1,17 @@
+index=* filterlog
+| rex field=_raw ",(?<raw_src_ip>(?:[0-9]{1,3}[.]){3}[0-9]{1,3}),(?<raw_dest_ip>(?:[0-9]{1,3}[.]){3}[0-9]{1,3}),(?<raw_src_port>[0-9]+),(?<raw_dest_port>[0-9]+)(?:,|$)"
+| eval scan_src_ip=coalesce(src_ip,src,raw_src_ip)
+| eval scan_dest_ip=coalesce(dest_ip,dest,raw_dest_ip)
+| eval scan_dest_port=tonumber(coalesce(dest_port,dst_port,dport,raw_dest_port))
+| where isnotnull(scan_src_ip) AND isnotnull(scan_dest_ip)
+    AND isnotnull(scan_dest_port) AND scan_dest_port>=1 AND scan_dest_port<=65535
+| eval event_time=_time
+| bin _time span=5m
+| stats count AS logged_packets dc(scan_dest_port) AS unique_dest_ports
+    values(scan_dest_port) AS destination_ports min(event_time) AS first_seen max(event_time) AS last_seen
+    BY _time scan_src_ip scan_dest_ip
+| where unique_dest_ports>=10
+| eval detection_id="DET-10", detection_name="Potential Multi-Port Scan"
+| rename scan_src_ip AS src_ip scan_dest_ip AS dest_ip
+| table _time src_ip dest_ip unique_dest_ports logged_packets destination_ports first_seen last_seen detection_id detection_name
+| sort 0 - unique_dest_ports

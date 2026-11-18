@@ -1,0 +1,9 @@
+index=windows (source="XmlWinEventLog:Security" OR source="WinEventLog:Security") EventCode=4732
+| eval group_sid=TargetSid
+| where group_sid="S-1-5-32-544"
+| eval group_name=TargetUserName
+| eval added_member_sid=MemberSid, added_member_name=MemberName
+| eval actor=SubjectUserName, actor_domain=SubjectDomainName
+| eval detection_id="DET-07", detection_name="User Added to Local Administrators"
+| table _time host group_sid group_name added_member_sid added_member_name actor actor_domain detection_id detection_name
+| sort 0 - _time

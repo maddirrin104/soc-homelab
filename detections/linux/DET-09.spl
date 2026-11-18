@@ -1,0 +1,12 @@
+index=* ("Failed password for" OR "Accepted password for" OR "Accepted publickey for")
+| rex field=_raw "(?i)(?<auth_result>Failed|Accepted) (?<auth_method>password|publickey) for (?:invalid user )?(?<account>[^[:space:]]+) from (?<src_ip>[0-9a-f:.]+) port (?<src_port>[0-9]+)"
+| where isnotnull(auth_result) AND isnotnull(account) AND isnotnull(src_ip)
+| eval account=lower(account), auth_result=lower(auth_result), auth_method=lower(auth_method)
+| eval is_failure=if(auth_result="failed" AND auth_method="password",1,0)
+| sort 0 +_time
+| streamstats time_window=10m current=f sum(is_failure) AS failures_before_success BY host account src_ip
+| where auth_result="accepted" AND failures_before_success>=3
+| eval correlation_type=if(auth_method="password","password_success_after_failures","publickey_success_after_password_failures")
+| eval detection_id="DET-09", detection_name="Successful SSH Login After Failures"
+| table _time host account src_ip auth_method correlation_type failures_before_success detection_id detection_name
+| sort 0 - _time
